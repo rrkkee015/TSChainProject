@@ -1,60 +1,94 @@
-const name = "Donghun",
-  age = 28,
-  gender = "male";
+// 해시 만들어주는 라이브러리
+import * as CryptoJS from "crypto-js";
 
+class Block {
+  // static method를 만들건데, static method는 클래스가 생성되지 않았어도 호출할 수 있는 method이다.
+  // 즉, Block 클래스 안에서 항상 사용 가능한 method이다.
 
-const sayHi = (name: string, age: number, gender: string): void => {
-  // const sayHi = (name, age, gender?) => { // gender는 Optional이 된다.
-  console.log(`Hello ${name}, you are ${age}, you are a ${gender}!!.`);
-};
+  static calculateBlockHash = (
+    index: number,
+    previousHash: string,
+    timestamp: number,
+    data: string
+  ): string => CryptoJS.SHA256(index + previousHash + timestamp + data).toString();
 
-// 만약 여기서 gender가 없으면 compile 에러가 뜬다. TS라서 가능
-// JS에선 그냥 실행된다.
-// 함수에서 선언한 type과 다르게 주면 에러 뜬다.
-sayHi(name, age, gender);
+  static validateStructure = (aBlock: Block): boolean =>
+    typeof aBlock.index === "number" &&
+    typeof aBlock.hash === "string" &&
+    typeof aBlock.previousHash === "string" &&
+    typeof aBlock.timestamp === "number" &&
+    typeof aBlock.data === "string";
 
-// Object에 뭐가 들었는지 나열이 가능하다.
-// 얘는 JS로 컴파일 되지 않는다.
-// 그래도 넣고 싶으면 class를 집어넣는다.
-interface inHuman {
-  name: string,
-  age: number,
-  gender: string
-}
+  public index: number;
+  public hash: string;
+  public previousHash: string;
+  public data: string;
+  public timestamp: number;
 
-// JS에서는 클래스의 속성(property)를 묘사할 필요가 없었다.
-// TS에선 어떤 속성들을 가져야 하는지 선언해야한다.
-class Human {
-  // public, private이 있는데, JS에선 신경쓰지 않는다.
-  // private의 경우엔 class 내에서만 사용할 수 있다.
-  // 즉 objectSayHi에서 person.age를 하는 부분에서 에러가 출력된다.
-  public name: string;
-  public age: number;
-  public gender: string;
-  // 생성자를 만드는데, 클래스로 객체를 만들 때마다 호출된다.
-  constructor(name: string, age: number, gender: string) {
-    this.name = name;
-    this.age = age;
-    this.gender = gender;
+  constructor(
+    index: number,
+    hash: string,
+    previousHash: string,
+    data: string,
+    timestamp: number
+  ) {
+    this.index = index;
+    this.hash = hash;
+    this.previousHash = previousHash;
+    this.data = data;
+    this.timestamp = timestamp;
   }
 }
 
-const lynn = new Human("Lynn", 18, "femail");
+const genesisBlock: Block = new Block(0, "1sadfhjlhkhq12", "", "Hello", 123456);
 
-const person = {
-  name: "Donghun",
-  gender: "male",
-  age: 28
+// blockChain 배열에는 Block만 들어갈 수 있도록 했다.
+let blockChain: Block[] = [genesisBlock];
+
+// blockChain.push("stuff"); 이렇게 하면 안된다.
+
+const getBlockChain = (): Block[] => blockChain;
+
+const getLatestBlock = (): Block => blockChain[blockChain.length - 1];
+
+const getNewTimeStamp = (): number => Math.round(new Date().getTime() / 1000);
+
+const createNewBlock = (data: string): Block => {
+  const previousBlock: Block = getLatestBlock();
+  const newIndex: number = previousBlock.index + 1;
+  const newTimeStamp: number = getNewTimeStamp();
+  const newHash: string = Block.calculateBlockHash(newIndex, previousBlock.hash, newTimeStamp, data);
+  const newBlock: Block = new Block(newIndex, newHash, previousBlock.hash, data, newTimeStamp);
+  addBlock(newBlock);
+  return newBlock;
 };
 
-// insertFace는 여기서 사용함
-// const objectSayHi = (person: inHuman): string => {
-const objectSayHi = (person: Human): string => {
-  return `Hello ${person.name}, you are ${person.age}, you are a ${person.gender}!!.`;
-}
+const getHashforBlock = (aBlock: Block): string => Block.calculateBlockHash(aBlock.index, aBlock.previousHash, aBlock.timestamp, aBlock.data);
 
-console.log(objectSayHi(person));
-console.log(objectSayHi(lynn));
+const isBlockValid = (candidateBlock: Block, previousBlock: Block): boolean => {
+  if (!Block.validateStructure(candidateBlock)) {
+    return false;
+  } else if (previousBlock.index + 1 !== candidateBlock.index) {
+    return false;
+  } else if (previousBlock.hash !== candidateBlock.previousHash) {
+    return false;
+  } else if (getHashforBlock(candidateBlock) !== candidateBlock.hash) {
+    return false;
+  } else {
+    return true;
+  }
+};
 
-// 이 파일이 모듈이 된다는걸 알려줄 수 있다.
+const addBlock = (candidateBlock: Block): void => {
+  if (isBlockValid(candidateBlock, getLatestBlock())) {
+    blockChain.push(candidateBlock);
+  }
+};
+
+createNewBlock("second block");
+createNewBlock("third block");
+createNewBlock("fourth block");
+
+console.log(getBlockChain());
+
 export { };
